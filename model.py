@@ -101,7 +101,7 @@ def backbone_resnet(input_shape, dropout_rate=None, se_head=False, se_tail=False
     return model
 
 
-def build_model(input_dim, input_list, backbone_type='cnn', se_head=False, se_tail=False):
+def build_model(feat_time, input_dim, input_list, backbone_type='cnn', se_head=False, se_tail=False):
     if backbone_type == 'cnn':
         backbone = backbone_cnn(input_dim)
     elif backbone_type == 'densenet':
@@ -109,11 +109,15 @@ def build_model(input_dim, input_list, backbone_type='cnn', se_head=False, se_ta
     elif backbone_type == 'resnet':
         backbone = backbone_resnet(input_dim, se_head=se_head, se_tail=se_tail)
 
-    out_all = layers.Concatenate(axis=1)(
-        [backbone(inp) for inp in input_list]
-    )
-    lstm_layer = layers.LSTM(128, name='lstm')(out_all)
-    out_layer = layers.Dense(3, activation='softmax', name='out')(lstm_layer)
-    model = models.Model(input_list, out_layer)
+    if feat_time > 1:
+        out_all = layers.Concatenate(axis=1)(
+            [backbone(inp) for inp in input_list]
+        )
+        lstm_layer = layers.LSTM(128, name='lstm')(out_all)
+        out_layer = layers.Dense(3, activation='softmax', name='out')(lstm_layer)
+    else:
+        out = [backbone(inp) for inp in input_list][0][:, 0, :]
+        out_layer = layers.Dense(3, activation='softmax', name='out')(out)
 
+    model = models.Model(input_list, out_layer)
     return model
